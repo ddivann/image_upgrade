@@ -1,0 +1,31 @@
+name: Size Limit Control
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-check-size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install dependencies
+        run: npm ci || npm install
+      - name: Build
+        run: npm run build
+      - name: Check size limit (max 10MB raw)
+        run: |
+          size=$(du -sb dist | awk '{ print $1 }')
+          max_size=$((10 * 1024 * 1024))
+          echo "Current raw size: $size bytes"
+          if [ $size -gt $max_size ]; then
+            echo "Error: Bundle size ($size bytes) exceeds the 10MB limit."
+            exit 1
+          fi
+          echo "Bundle size is within limits."

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Enhancer - ChatGPT Style</title>
+  <style>
+    /* Reset & Base Styles */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #343541;
+      color: #ECECF1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Main Chat Area */
+    .chat-container {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 120px; /* Space for input */
+    }
+
+    .message {
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .message.user {
+      background-color: #343541;
+    }
+    .message.assistant {
+      background-color: #444654;
+    }
+
+    .message-content {
+      max-width: 800px;
+      width: 100%;
+      display: flex;
+      gap: 20px;
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .avatar.user-av { background-color: #10a37f; }
+    .avatar.assistant-av { background-color: #5436DA; }
+
+    .text-content {
+      flex: 1;
+      line-height: 1.5;
+    }
+
+    .image-preview {
+      max-width: 300px;
+      max-height: 300px;
+      border-radius: 8px;
+      object-fit: cover;
+      margin-top: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+
+    /* Progress UI */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      background: #202123;
+      border-radius: 4px;
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #10a37f;
+    }
+    .progress-track {
+      width: 100%;
+      max-width: 400px;
+      background: #202123;
+      height: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #10a37f;
+      transition: width 0.3s ease;
+    }
+
+    /* Action Buttons */
+    .btn-cancel {
+      padding: 6px 12px;
+      background: rgba(220, 53, 69, 0.2);
+      color: #ff6b6b;
+      border: 1px solid #dc3545;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+      transition: all 0.2s;
+    }
+    .btn-cancel:hover {
+      background: #dc3545;
+      color: white;
+    }
+
+    /* Input Area */
+    .input-area {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, rgba(53,55,64,0), #343541 40%);
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .input-box {
+      max-width: 800px;
+      width: 100%;
+      background: #40414F;
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    .fake-input {
+      flex: 1;
+      color: #8e8ea0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #file-input { display: none; }
+
+    .btn-upload {
+      background: #10a37f;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-upload:hover { background: #0f8e6c; }
+    .btn-upload:disabled {
+      background: #565869;
+      color: #8e8ea0;
+      cursor: not-allowed;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="chat-container" id="chat-feed">
+    <!-- Initial welcome message -->
+    <div class="message assistant">
+      <div class="message-content">
+        <div class="avatar assistant-av">AI</div>
+        <div class="text-content">
+          <p>Привет! Я виртуальный ассистент по улучшению качества изображений.</p>
+          <p style="margin-top:10px; color:#8e8ea0;">Загрузите картинку, и я обработаю её прямо в вашем браузере.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-box">
+      <input type="file" id="file-input" accept="image/*" />
+      <div class="fake-input" id="trigger-upload">
+        Прикрепить изображение для улучшения...
+      </div>
+      <button class="btn-upload" id="btn-send" disabled>
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="16" width="16"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/demo.ts"></script>
+</body>
+</html>

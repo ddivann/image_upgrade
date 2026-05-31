@@ -1,0 +1,89 @@
+Необходимо разработать систему, реализующую улучшение изображений в реальном времени посредством запуска ML-модели в браузере пользователя. Улучшение изображений производится по следующим параметрам: яркость, контрастность и цветность.
+
+Требования
+— Работоспособность во всех массовых современных браузерах
+— Суммарный объём кода — до 10 МБ
+— Обработка изображений до 15 Мпк
+— Максимальное время обработки — до 30 с
+— Среднее время обработки изображения — 5 с
+— Поддержка форматов: JPG, PNG, HEIC, BMP
+— Работа в асинхронном режиме (без блокировки браузера пользователя)
+
+Пример API:
+export type TaskStatus = 'queued' | 'decoding' | 'analyzing' | 'processing' | 'encoding' | 'done' | 'cancelled' | 'error';
+
+export interface TaskProgress {
+  taskId: string;
+  status: TaskStatus;
+  progress: number; // 0..100
+}
+
+export interface ImageEnhancerAPI {
+  submitTask(image: Blob | ArrayBuffer | ImageBitmap): Promise<string>;
+  getTaskStatus(taskId: string): Promise<TaskProgress>;
+  cancelTask(taskId: string): Promise<boolean>;
+  getResult(taskId: string): Promise<Blob>;
+
+  onTaskStatusChange(callback: (e: TaskProgress) => void): () => void;
+}
+
+Этап 1: Инициализация и инфраструктура
+Настройка TypeScript + Vite/Rollup с агрессивным tree-shaking, минификацией и отчётом по размеру бандла.
+Структура проекта: api/, worker/, ml/, processing/, decoders/, utils/.
+Настройка CI для контроля размера (<10 МБ gzip/brotli не учитывается, лимит на raw payload).
+Этап 2: API и менеджер задач (Main Thread)
+Реализация класса ImageEnhancer с методами: submitTask(), getTaskStatus(), cancelTask(), getResult().
+Встроенный EventEmitter для onTaskStatusChange.
+Передача изображений в Worker через postMessage(imageBitmap, [imageBitmap]) (zero-copy).
+Очередь задач, таймауты, очистка ресурсов.
+Этап 3: Web Worker и конвейер обработки
+Приём задач, маршрутизация по стадиям:
+Декодирование (0–20%)
+Подготовка превью + ML-инференс (20–40%)
+Применение параметров к полному разрешению (40–90%)
+Кодирование результата (90–100%)
+Отправка прогресса через postMessage({type: 'progress', taskId, status, percent}).
+Поддержка отмены: флаг aborted, прерывание декодера, очистка WebGL-текстур.
+Этап 4: Декодирование форматов
+JPG/PNG/BMP: нативный createImageBitmap() или <canvas> в Worker.
+HEIC: интеграция libheif-js или heic2any (WASM). Динамический импорт только при обнаружении HEIC-сигнатуры.
+Приведение к ImageBitmap → передача в WebGL.
+Этап 5: ML-модель (предсказание параметров)
+Архитектура: MobileNetV3-small / EfficientNet-B0 или кастомная 5-слойная CNN → GlobalAvgPool → Dense(3).
+Вход: изображение, уменьшенное до 224×224 (сохранение пропорций, padding).
+Выход: [brightness_offset, contrast_multiplier, saturation_multiplier].
+Обучение: датасет пар "исходное → экспертно скорректированное", лосс L1/L2 по параметрам + перцептуальный лосс. Аугментации: экспозиция, гамма, десатурация.
+Экспорт: ONNX → INT8/FP16 квантование → размер ≤1.2 МБ.
+Инференс: onnxruntime-web (minified build) или кастомный WebGL-инференсер для экономии размера.
+Этап 6: Применение коррекции (WebGL)
+Фрагментный шейдер с матрицей преобразования цвета:
+uniform sampler2D u_tex;
+uniform float u_brightness; // -1.0..1.0
+uniform float u_contrast;   // 0.5..2.0
+uniform float u_saturation; // 0.0..2.0
+// стандартная формула: RGB = contrast * (RGB - 0.5) + 0.5 + brightness
+// насыщенность через luminance mix
+Рендер в offscreen canvas → canvas.toBlob() (асинхронно, без readPixels).
+Поддержка тайлинга при нехватке VRAM (fallback для слабых GPU).
+Этап 7: Оптимизация размера и производительности
+Бюджет размера (raw):
+Ядро + API + Worker: ~0.8 МБ
+ONNX Runtime (min): ~1.5 МБ
+ML-модель (INT8): ~1.0 МБ
+HEIC WASM: ~2.5 МБ
+Шейдеры + утилиты: ~0.5 МБ
+Резерв/метаданные: ~1.2 МБ
+Итого: ~7.5 МБ (запас до 10 МБ)
+Исключение полифилов, target: Chrome 90+, Firefox 90+, Safari 15+, Edge 90+.
+Lazy-loading HEIC-декодера и ML-рантайма.
+Переиспользование WebGL-контекста и текстур между задачами.
+Этап 8: Тестирование и валидация
+Кросс-браузерные тесты (Chrome, Firefox, Safari, Edge, мобильные).
+Нагрузочные тесты: 15 Мп JPG/PNG/HEIC/BMP, замер времени (цель: avg ≤5 с, max ≤30 с).
+Проверка утечек памяти, корректной отмены задач, очистки GPU.
+Сравнение качества с эталонными изображениями (PSNR/SSIM + визуальная экспертиза).
+Финальный аудит размера бандла.
+Этап 9: Документация и поставка
+TypeScript-интерфейсы, JSDoc, примеры использования.
+Инструкция по сборке, кастомизации модели, настройке лимитов.
+Отчёт по производительности и покрытию браузеров.
