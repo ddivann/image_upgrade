@@ -16,7 +16,7 @@ class ImageEnhancer {
     __publicField(this, "MAX_CONCURRENT", 1);
     // Максимум 1 задача одновременно(для браузерного ML)
     __publicField(this, "TASK_TIMEOUT_MS", 3e4);
-    this.worker = new Worker(new URL("/assets/index-e6e92d40.js", self.location), { type: "module" });
+    this.worker = new Worker(new URL("/assets/index-d6997690.js", self.location), { type: "module" });
     this.worker.onmessage = this.handleWorkerMessage.bind(this);
   }
   handleWorkerMessage(e) {

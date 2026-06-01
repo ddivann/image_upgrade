@@ -18,6 +18,7 @@
     "vite-plugin-dts": "^5.0.0"
   },
   "dependencies": {
-    "heic2any": "^0.0.4"
+    "heic2any": "^0.0.4",
+    "onnxruntime-web": "^1.26.0"
   }
 }

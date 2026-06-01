@@ -1,5 +1,3 @@
-// pipeline.ts - Конвейер обработки
-
 export interface TaskContext {
   taskId: string;
   aborted: boolean;

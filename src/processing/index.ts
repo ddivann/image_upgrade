@@ -9,8 +9,8 @@ export async function processWebGL(bitmap: ImageBitmap, params: MLParams, ctx: T
   ctx.updateProgress('processing', 50);
   ctx.checkCancelled();
   
-  // Применяем WebGL-фильтр
-  const processedBitmap = applyColorCorrection(bitmap, params);
+  // Применяем WebGL-фильтр или 2D-фолбэк
+  const processedBitmap = await applyColorCorrection(bitmap, params);
   
   ctx.updateProgress('processing', 90);
   

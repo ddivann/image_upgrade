@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Image Enhancer - ChatGPT Style</title>
+  <title>Image Enhancer</title>
   <style>
     /* Reset & Base Styles */
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -166,6 +166,53 @@
       cursor: not-allowed;
     }
 
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .tile-card {
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px;
+      background: #373840;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tile-thumb {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #202123;
+    }
+
+    .tile-label {
+      font-size: 13px;
+      color: #e5e7eb;
+      text-align: center;
+      min-height: 32px;
+    }
+
+    .tile-download {
+      color: #10a37f;
+      text-decoration: none;
+      font-size: 13px;
+      padding: 4px 8px;
+      border: 1px solid rgba(16,163,127,0.3);
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+
+    .tile-download:hover {
+      background: rgba(16,163,127,0.12);
+    }
+
   </style>
 </head>
 <body>
@@ -191,6 +238,9 @@
       </div>
       <button class="btn-upload" id="btn-send" disabled>
         <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="16" width="16"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+      <button class="btn-upload" id="btn-dataset" type="button">
+        Тест-датасет
       </button>
     </div>
   </div>

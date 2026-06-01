@@ -15,43 +15,49 @@ export async function runMLInference(bitmap: ImageBitmap, ctx: TaskContext): Pro
   const previewData = await createPreview224(bitmap, ctx);
   ctx.checkCancelled();
 
-  // Try dynamic import of onnxruntime-web and a model at ./model.onnx (optional)
+  // ONNX disabled by default so the app stays stable on Windows/dev
+  // until a model is explicitly provided and enabled.
+  const onnxEnabled = import.meta.env.VITE_ENABLE_ONNX === 'true';
+  if (!onnxEnabled) {
+    const params = heuristicParamsFromImageData(previewData);
+    ctx.updateProgress('analyzing', 40);
+    return params;
+  }
+
+  // Try dynamic import of onnxruntime-web
   try {
-    // TS may not have types for optional runtime; try to import without static analysis
-    // Use dynamic import via Function to avoid bundler resolving the module at build time
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const importFn = new Function('m', 'return import(m)');
-    const ort = await importFn('onnxruntime-web').catch(() => null);
-    if (ort && (ort as any).InferenceSession) {
+    const ort = await import('onnxruntime-web');
+    if (ort && ort.InferenceSession) {
+      // Optional: fallback WASM path configuration
+      // ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
       try {
         const modelResp = await fetch('model.onnx');
         if (modelResp.ok) {
           const modelBuf = await modelResp.arrayBuffer();
           ctx.checkCancelled();
-          const session = await (ort as any).InferenceSession.create(modelBuf);
+          const session = await ort.InferenceSession.create(modelBuf, { executionProviders: ['wasm'] });
           const floatData = tensorFromImageData(previewData);
           const inputName = session.inputNames && session.inputNames[0] ? session.inputNames[0] : 'input';
-          const tensor = new (ort as any).Tensor('float32', floatData, [1, 3, previewData.height, previewData.width]);
+          const tensor = new ort.Tensor('float32', floatData, [1, 3, previewData.height, previewData.width]);
           const feeds: any = {};
           feeds[inputName] = tensor;
           const output = await session.run(feeds);
           ctx.checkCancelled();
           const outNames = Object.keys(output);
           const out = output[outNames[0]];
-          const arr = out.data ? out.data : out;
-          const b = clamp(arr[0], -1, 1);
-          const c = clamp(arr[1], 0.5, 2.0);
-          const s = clamp(arr[2], 0.0, 2.0);
+          const arr = out.data ? (out.data as unknown as Float32Array) : (out as unknown as Float32Array);
+          const b = clamp(arr[0] as number, -1, 1);
+          const c = clamp(arr[1] as number, 0.5, 2.0);
+          const s = clamp(arr[2] as number, 0.0, 2.0);
           ctx.updateProgress('analyzing', 40);
           return { brightness: b, contrast: c, saturation: s };
         }
       } catch (e) {
-        // model fetch or session error -> fallback
+        console.warn('ML: model fetch or session error -> fallback', e);
       }
     }
   } catch (e) {
-    // onnxruntime-web not available -> fallback
+    console.warn('ML: onnxruntime-web not available -> fallback', e);
   }
 
   // Heuristic fallback: statistics-based estimate

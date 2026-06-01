@@ -72,8 +72,9 @@ export function cleanupWebGL() {
   }
 }
 
-export function applyColorCorrection(bitmap: ImageBitmap, params: MLParams): ImageBitmap {
-  let { width, height } = bitmap;
+async function applyColorCorrectionWebGL(bitmap: ImageBitmap, params: MLParams): Promise<ImageBitmap> {
+  let width = bitmap.width;
+  let height = bitmap.height;
   const { gl, program } = getContext(width, height);
 
   // MAX_TEXTURE_SIZE check for fallback/tiling
@@ -115,12 +116,6 @@ export function applyColorCorrection(bitmap: ImageBitmap, params: MLParams): Ima
   gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer);
   gl.bufferData(
     gl.ARRAY_BUFFER,
-    /* 
-      Texture coordinates
-      In WebGL, 0.0 is the bottom and 1.0 is the top. 
-      But when uploading ImageBitmap, sometimes data is flipped. 
-      We'll map 0,1 to see if we get upside-down bugs, standard maps:
-    */
     new Float32Array([
       0.0, 0.0,
       1.0, 0.0,
@@ -154,8 +149,7 @@ export function applyColorCorrection(bitmap: ImageBitmap, params: MLParams): Ima
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-  // Depending on how browsers deal with bitmap -> Y flipping
-  // It's usually better NOT to flip IF canvas draws straight
+  // Flip Y on upload so texture coordinates map correctly to canvas orientation.
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
@@ -163,9 +157,27 @@ export function applyColorCorrection(bitmap: ImageBitmap, params: MLParams): Ima
   // Draw
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-  // We can transfer from the underlying OffscreenCanvas 
-  // without readPixels using transferToImageBitmap (fastest path).
-  const result = (gl.canvas as OffscreenCanvas).transferToImageBitmap();
+  const outWidth = (gl.canvas as OffscreenCanvas).width;
+  const outHeight = (gl.canvas as OffscreenCanvas).height;
+  const pixels = new Uint8Array(outWidth * outHeight * 4);
+  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+  const canvas2d = new OffscreenCanvas(width, height);
+  const ctx2d = canvas2d.getContext('2d');
+  if (!ctx2d) throw new Error('2D canvas is not supported for WebGL readback');
+
+  const imageData = ctx2d.createImageData(outWidth, outHeight);
+  const dest = imageData.data;
+  const rowBytes = outWidth * 4;
+
+  for (let y = 0; y < outHeight; y++) {
+    const srcOffset = y * rowBytes;
+    const dstOffset = y * rowBytes;
+    dest.set(pixels.subarray(srcOffset, srcOffset + rowBytes), dstOffset);
+  }
+
+  ctx2d.putImageData(imageData, 0, 0);
+  const result = canvas2d.transferToImageBitmap();
 
   // Clean buffers
   gl.deleteTexture(texture);
@@ -173,4 +185,45 @@ export function applyColorCorrection(bitmap: ImageBitmap, params: MLParams): Ima
   gl.deleteBuffer(tBuffer);
 
   return result;
+}
+
+function applyColorCorrection2D(bitmap: ImageBitmap, params: MLParams): ImageBitmap {
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas is not supported');
+
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    let r = data[i] / 255;
+    let g = data[i + 1] / 255;
+    let b = data[i + 2] / 255;
+
+    r = params.contrast * (r - 0.5) + 0.5 + params.brightness;
+    g = params.contrast * (g - 0.5) + 0.5 + params.brightness;
+    b = params.contrast * (b - 0.5) + 0.5 + params.brightness;
+
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    r = luminance + (r - luminance) * params.saturation;
+    g = luminance + (g - luminance) * params.saturation;
+    b = luminance + (b - luminance) * params.saturation;
+
+    data[i] = Math.max(0, Math.min(255, Math.round(r * 255)));
+    data[i + 1] = Math.max(0, Math.min(255, Math.round(g * 255)));
+    data[i + 2] = Math.max(0, Math.min(255, Math.round(b * 255)));
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvas.transferToImageBitmap();
+}
+
+export async function applyColorCorrection(bitmap: ImageBitmap, params: MLParams): Promise<ImageBitmap> {
+  try {
+    return await applyColorCorrectionWebGL(bitmap, params);
+  } catch (error) {
+    console.warn('WebGL failed, falling back to 2D processing', error);
+    return applyColorCorrection2D(bitmap, params);
+  }
 }

@@ -5,7 +5,7 @@ import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
   build: {
-    target: 'es2020',
+    target: ['es2021', 'chrome90', 'firefox90', 'safari15', 'edge90'],
     minify: 'terser',
     terserOptions: {
       compress: {
