@@ -4,6 +4,7 @@ import dts from 'vite-plugin-dts';
 import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig({
+  base: './', // GitHub Pages compatibility
   build: {
     target: ['es2021', 'chrome90', 'firefox90', 'safari15', 'edge90'],
     minify: 'terser',
