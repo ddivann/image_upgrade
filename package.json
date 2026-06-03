@@ -7,7 +7,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build --mode demo",
+    "build:lib": "tsc && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
