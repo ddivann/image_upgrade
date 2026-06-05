@@ -11,25 +11,13 @@ export interface MLParams {
 export async function runMLInference(bitmap: ImageBitmap, ctx: TaskContext): Promise<MLParams> {
   ctx.updateProgress('analyzing', 30);
 
-  // Prepare 224x224 preview preserving aspect ratio with padding
   const previewData = await createPreview224(bitmap, ctx);
   ctx.checkCancelled();
 
-  // ONNX disabled by default so the app stays stable on Windows/dev
-  // until a model is explicitly provided and enabled.
-  const onnxEnabled = import.meta.env.VITE_ENABLE_ONNX === 'true';
-  if (!onnxEnabled) {
-    const params = heuristicParamsFromImageData(previewData);
-    ctx.updateProgress('analyzing', 40);
-    return params;
-  }
-
-  // Try dynamic import of onnxruntime-web
+  // Try ONNX inference first, fallback to heuristic
   try {
     const ort = await import('onnxruntime-web');
     if (ort && ort.InferenceSession) {
-      // Optional: fallback WASM path configuration
-      // ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
       try {
         const modelResp = await fetch('model.onnx');
         if (modelResp.ok) {

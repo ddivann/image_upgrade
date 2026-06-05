@@ -32,3 +32,6 @@ stats.html
 
 # Info / documentation (non-essential)
 info/
+
+# Public folder
+public/
